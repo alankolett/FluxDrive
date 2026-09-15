@@ -139,10 +139,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div>
                   <div className="font-semibold text-[#141413] flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-[#6D28D9]" />
-                    <span>Privacy-Filtered AI (xAI Grok)</span>
+                    <span>Privacy-Filtered AI (Groq LPU / LLaMA 3.3)</span>
                   </div>
                   <p className="text-[11px] text-[#5C5C56] mt-0.5 leading-relaxed">
-                    Extracted text is stripped of all PII and sensitive identifiers before dispatch to models.
+                    Extracted text is stripped of all PII and sensitive identifiers before dispatch to Groq models.
                   </p>
                 </div>
               </label>

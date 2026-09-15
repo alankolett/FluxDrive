@@ -57,5 +57,5 @@ if env_file.exists():
         pass
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GROK_API_KEY = os.getenv("GROK_API_KEY") or os.getenv("XAI_API_KEY", "")
-DEFAULT_GROK_MODEL = os.getenv("GROK_MODEL", "grok-2-latest")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY") or os.getenv("GROK_API_KEY", "")
+DEFAULT_GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")

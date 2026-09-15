@@ -147,7 +147,7 @@ export const api = {
     fileId: string,
     userConsented: boolean,
     question?: string,
-    grokApiKey?: string,
+    groqApiKey?: string,
     model?: string
   ): Promise<CopilotResponseData> {
     const res = await fetch(`${getApiBase()}/copilot/query`, {
@@ -157,7 +157,8 @@ export const api = {
         file_id: fileId,
         user_consented: userConsented,
         question: question || 'Summarize this document and recommend next steps',
-        grok_api_key: grokApiKey || undefined,
+        groq_api_key: groqApiKey || undefined,
+        grok_api_key: groqApiKey || undefined,
         model: model || undefined,
       }),
     });

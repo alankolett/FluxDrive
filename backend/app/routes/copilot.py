@@ -23,6 +23,7 @@ class CopilotQueryRequest(BaseModel):
     file_id: str
     user_consented: bool = False
     question: Optional[str] = "Summarize this document and recommend next steps"
+    groq_api_key: Optional[str] = None
     grok_api_key: Optional[str] = None
     model: Optional[str] = None
 
@@ -180,10 +181,9 @@ async def preview_sanitized_payload(req: CopilotPreviewRequest):
 @router.post("/query")
 async def copilot_query(req: CopilotQueryRequest):
     """
-    AI Copilot query endpoint.
+    AI Copilot query endpoint powered by Groq API.
     Strictly checks user opt-in consent. If consent is missing, rejects.
-    If GEMINI_API_KEY is available and configured, calls the model with sanitized text only.
-    Otherwise, returns honest, deterministic rule-based output.
+    Uses sanitized text only.
     """
     db = get_db()
     f = db.files.find_one({"file_id": req.file_id})
@@ -210,21 +210,24 @@ async def copilot_query(req: CopilotQueryRequest):
         "text_summary": f"Extracted {len(sanitized_text.split())} words. " + (sanitized_text[:280] + "..." if len(sanitized_text) > 280 else sanitized_text)
     }
 
-    # 2. Try xAI Grok API (Primary)
-    effective_grok_key = (req.grok_api_key or "").strip() or GROK_API_KEY
-    if effective_grok_key:
-        target_model = req.model or DEFAULT_GROK_MODEL or "grok-2-latest"
+    # 2. Try Groq API (Primary)
+    effective_groq_key = (req.groq_api_key or req.grok_api_key or "").strip() or GROQ_API_KEY
+    if effective_groq_key:
+        target_model = req.model or DEFAULT_GROQ_MODEL or "llama-3.3-70b-versatile"
+        if "grok" in target_model.lower():
+            target_model = "llama-3.3-70b-versatile"
+
         try:
-            grok_headers = {
-                "Authorization": f"Bearer {effective_grok_key}",
+            groq_headers = {
+                "Authorization": f"Bearer {effective_groq_key}",
                 "Content-Type": "application/json"
             }
-            grok_payload = {
+            groq_payload = {
                 "messages": [
                     {
                         "role": "system",
                         "content": (
-                            "You are FluxDrive AI Copilot, a privacy-first intelligent document workstation assistant. "
+                            "You are FluxDrive AI Copilot, a privacy-first intelligent document workstation assistant powered by Groq LPU engine. "
                             "You analyze documents whose sensitive data has already been scrubbed by the AI Privacy Firewall. "
                             "Provide crisp, high-level analysis, key findings, and actionable recommendations for conversion or privacy."
                         )
@@ -241,15 +244,16 @@ async def copilot_query(req: CopilotQueryRequest):
                     }
                 ],
                 "model": target_model,
-                "temperature": 0.3,
+                "temperature": 0.2,
+                "max_tokens": 1024,
                 "stream": False
             }
 
             resp = requests.post(
-                "https://api.x.ai/v1/chat/completions",
-                headers=grok_headers,
-                json=grok_payload,
-                timeout=35
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers=groq_headers,
+                json=groq_payload,
+                timeout=30
             )
 
             if resp.status_code == 200:
@@ -258,26 +262,25 @@ async def copilot_query(req: CopilotQueryRequest):
                 if choices and "message" in choices[0]:
                     content = choices[0]["message"].get("content", "")
                     return {
-                        "source": f"xAI Grok ({target_model}) · Privacy-Filtered",
+                        "source": f"Groq LPU ({target_model}) · Privacy-Filtered",
                         "copilot_response": content,
                         "masked_fields_count": masked_count
                     }
             elif resp.status_code in [401, 403]:
                 return {
-                    "source": "xAI Grok Authentication",
-                    "copilot_response": "⚠️ Invalid xAI Grok API Key. Please verify your API key in Settings (⚙️) or pass a valid key starting with 'xai-'.",
+                    "source": "Groq Authentication",
+                    "copilot_response": "⚠️ Invalid Groq API Key. Please verify your Groq API key (starts with 'gsk_') in Settings (⚙️) or in AI Copilot.",
                     "masked_fields_count": masked_count
                 }
             else:
                 err_detail = resp.text[:200]
-                # If model grok-2-latest failed, try fallback to grok-beta
-                if target_model != "grok-beta":
-                    grok_payload["model"] = "grok-beta"
+                if target_model != "llama-3.1-8b-instant":
+                    groq_payload["model"] = "llama-3.1-8b-instant"
                     fallback_resp = requests.post(
-                        "https://api.x.ai/v1/chat/completions",
-                        headers=grok_headers,
-                        json=grok_payload,
-                        timeout=35
+                        "https://api.groq.com/openai/v1/chat/completions",
+                        headers=groq_headers,
+                        json=groq_payload,
+                        timeout=30
                     )
                     if fallback_resp.status_code == 200:
                         fb_data = fallback_resp.json()
@@ -285,23 +288,22 @@ async def copilot_query(req: CopilotQueryRequest):
                         if choices and "message" in choices[0]:
                             content = choices[0]["message"].get("content", "")
                             return {
-                                "source": "xAI Grok (grok-beta) · Privacy-Filtered",
+                                "source": "Groq LPU (llama-3.1-8b-instant) · Privacy-Filtered",
                                 "copilot_response": content,
                                 "masked_fields_count": masked_count
                             }
                 return {
-                    "source": f"xAI Grok API ({resp.status_code})",
-                    "copilot_response": f"Grok API returned error status {resp.status_code}: {err_detail}",
+                    "source": f"Groq API Error ({resp.status_code})",
+                    "copilot_response": f"Groq API returned status {resp.status_code}: {err_detail}",
                     "masked_fields_count": masked_count
                 }
         except requests.exceptions.Timeout:
             return {
-                "source": "xAI Grok Timeout",
-                "copilot_response": "Request to xAI Grok API timed out after 35s. Please retry your question.",
+                "source": "Groq API Timeout",
+                "copilot_response": "Request to Groq API timed out after 30s. Please retry your question.",
                 "masked_fields_count": masked_count
             }
         except Exception as e:
-            # Fall back to Gemini or Rule-based
             pass
 
     # 3. Try Gemini API if key is present
@@ -332,13 +334,13 @@ async def copilot_query(req: CopilotQueryRequest):
             pass
 
     return {
-        "source": "Local Rule Engine (xAI Grok Not Configured)",
+        "source": "Local Rule Engine (Groq Not Configured)",
         "copilot_response": (
             f"**File Assessment:** {rule_based_analysis['file_purpose']}\n\n"
             f"**Privacy Overview:** {rule_based_analysis['pii_summary']}\n\n"
             f"**Content Snippet:**\n> {rule_based_analysis['text_summary']}\n\n"
             f"**Recommendation:** {rule_based_analysis['recommended_action']}\n\n"
-            f"💡 *To activate live Grok intelligence, enter your xAI Grok API key in Settings (⚙️) or in the key input above.*"
+            f"⚡ *To activate high-speed Groq LPU intelligence, enter your Groq API key (`gsk_...`) in AI Copilot or Settings (⚙️).*"
         ),
         "masked_fields_count": masked_count
     }

@@ -24,22 +24,26 @@ export const CopilotView: React.FC<CopilotProps> = ({
   const [showFirewallModal, setShowFirewallModal] = useState(false);
   const [pendingPrompt, setPendingPrompt] = useState<string>('');
 
-  // xAI Grok API Key and Model state
-  const [grokApiKey, setGrokApiKey] = useState(() => localStorage.getItem('fluxdrive_grok_key') || '');
-  const [grokModel, setGrokModel] = useState(() => localStorage.getItem('fluxdrive_grok_model') || 'grok-2-latest');
+  // Groq API Key and Model state
+  const [groqApiKey, setGroqApiKey] = useState(() => localStorage.getItem('fluxdrive_groq_key') || localStorage.getItem('fluxdrive_grok_key') || '');
+  const [groqModel, setGroqModel] = useState(() => {
+    const saved = localStorage.getItem('fluxdrive_groq_model') || localStorage.getItem('fluxdrive_grok_model');
+    if (saved && !saved.includes('grok')) return saved;
+    return 'llama-3.3-70b-versatile';
+  });
   const [showKeyInput, setShowKeyInput] = useState(false);
   const [tempKey, setTempKey] = useState('');
 
-  const handleSaveGrokKey = () => {
+  const handleSaveGroqKey = () => {
     const trimmed = tempKey.trim();
-    setGrokApiKey(trimmed);
-    localStorage.setItem('fluxdrive_grok_key', trimmed);
+    setGroqApiKey(trimmed);
+    localStorage.setItem('fluxdrive_groq_key', trimmed);
     setShowKeyInput(false);
   };
 
   const handleSelectModel = (m: string) => {
-    setGrokModel(m);
-    localStorage.setItem('fluxdrive_grok_model', m);
+    setGroqModel(m);
+    localStorage.setItem('fluxdrive_groq_model', m);
   };
 
   const handleInitiateQuery = async (customQuestion?: string) => {
@@ -65,7 +69,7 @@ export const CopilotView: React.FC<CopilotProps> = ({
     if (!activeFile) return;
     setIsQuerying(true);
     try {
-      const res = await api.queryCopilot(activeFile.file_id, consent, promptText, grokApiKey || undefined, grokModel);
+      const res = await api.queryCopilot(activeFile.file_id, consent, promptText, groqApiKey || undefined, groqModel);
       setResponse(res);
       setQuestion('');
     } catch (err: any) {
@@ -105,7 +109,7 @@ export const CopilotView: React.FC<CopilotProps> = ({
             AI Copilot
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Document intelligence workspace strictly gated by the AI Privacy Firewall.
+            Ultra-fast document intelligence powered by Groq LPUs, strictly gated by the AI Privacy Firewall.
           </p>
         </div>
 
@@ -136,15 +140,15 @@ export const CopilotView: React.FC<CopilotProps> = ({
         </div>
       ) : (
         <div className="space-y-5">
-          {/* xAI Grok Status and Configuration Bar */}
+          {/* Groq LPU Status and Configuration Bar */}
           <div className="p-3.5 border border-slate-200 rounded bg-white shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2.5">
               <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-bold text-slate-900 font-sans">xAI Grok Intelligence:</span>
-                {grokApiKey ? (
+                <span className="font-bold text-slate-900 font-sans">Groq LPU Intelligence:</span>
+                {groqApiKey ? (
                   <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-mono text-[11px] font-bold border border-emerald-200">
-                    KEY ACTIVE ({grokModel})
+                    KEY ACTIVE ({groqModel})
                   </span>
                 ) : (
                   <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 font-mono text-[11px] font-bold border border-amber-200">
@@ -156,23 +160,23 @@ export const CopilotView: React.FC<CopilotProps> = ({
 
             <div className="flex items-center gap-2">
               <select
-                value={grokModel}
+                value={groqModel}
                 onChange={(e) => handleSelectModel(e.target.value)}
                 className="bg-slate-50 border border-slate-200 rounded px-2 py-1 text-[11px] font-mono text-slate-700 font-semibold focus:outline-none focus:border-blue-600 cursor-pointer"
               >
-                <option value="grok-2-latest">grok-2-latest</option>
-                <option value="grok-beta">grok-beta</option>
-                <option value="grok-vision-beta">grok-vision-beta</option>
+                <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile</option>
+                <option value="llama-3.1-8b-instant">llama-3.1-8b-instant</option>
+                <option value="mixtral-8x7b-32768">mixtral-8x7b-32768</option>
               </select>
 
               <button
                 onClick={() => {
-                  setTempKey(grokApiKey);
+                  setTempKey(groqApiKey);
                   setShowKeyInput(!showKeyInput);
                 }}
                 className="px-2.5 py-1 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors"
               >
-                {grokApiKey ? 'Change Key' : 'Configure Key'}
+                {groqApiKey ? 'Change Key' : 'Configure Key'}
               </button>
             </div>
           </div>
@@ -180,19 +184,19 @@ export const CopilotView: React.FC<CopilotProps> = ({
           {showKeyInput && (
             <div className="p-4 border border-blue-200 bg-blue-50/50 rounded shadow-2xs space-y-2 animate-in fade-in duration-100">
               <div className="text-xs font-semibold text-slate-900 flex items-center justify-between">
-                <span>Enter xAI Grok API Key</span>
-                <span className="text-[10px] text-slate-500 font-mono">Format: xai-...</span>
+                <span>Enter Groq API Key</span>
+                <span className="text-[10px] text-slate-500 font-mono">Format: gsk_...</span>
               </div>
               <div className="flex items-center gap-2">
                 <input
                   type="password"
                   value={tempKey}
                   onChange={(e) => setTempKey(e.target.value)}
-                  placeholder="xai-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  placeholder="gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                   className="flex-1 bg-white border border-slate-300 rounded px-3 py-1.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600"
                 />
                 <button
-                  onClick={handleSaveGrokKey}
+                  onClick={handleSaveGroqKey}
                   className="px-4 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold uppercase tracking-wider transition-colors"
                 >
                   Save
@@ -205,7 +209,7 @@ export const CopilotView: React.FC<CopilotProps> = ({
                 </button>
               </div>
               <p className="text-[11px] text-slate-500">
-                Your key is stored securely in browser storage and only dispatched for sanitized document intelligence.
+                Your Groq key is stored securely in browser storage and only dispatched for sanitized document intelligence.
               </p>
             </div>
           )}
