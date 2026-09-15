@@ -1,6 +1,7 @@
 import React from 'react';
 import { Download, FileCheck2, Clock } from 'lucide-react';
 import type { JobItem } from '../types';
+import { getFullDownloadUrl } from '../services/api';
 import { cleanFilename, formatBytes } from '../utils/format';
 
 interface ActivityProps {
@@ -109,7 +110,7 @@ export const ActivityView: React.FC<ActivityProps> = ({
 
                     {job.download_url && (
                       <a
-                        href={job.download_url}
+                        href={getFullDownloadUrl(job.download_url)}
                         className="p-1 text-slate-400 hover:text-emerald-700 transition-colors"
                         title="Download file"
                       >

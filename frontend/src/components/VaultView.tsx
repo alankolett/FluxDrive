@@ -9,7 +9,7 @@ import {
   Clock
 } from 'lucide-react';
 import type { FileItem } from '../types';
-import { api } from '../services/api';
+import { api, getFullDownloadUrl } from '../services/api';
 import { cleanFilename, formatBytes, formatTtl } from '../utils/format';
 
 interface VaultProps {
@@ -170,7 +170,7 @@ export const VaultView: React.FC<VaultProps> = ({
 
                         {file.download_url && (
                           <a
-                            href={file.download_url}
+                            href={getFullDownloadUrl(file.download_url)}
                             className="p-1.5 rounded text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
                             title="Download file"
                           >

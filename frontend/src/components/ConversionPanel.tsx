@@ -15,7 +15,7 @@ import {
   Check,
 } from 'lucide-react';
 import type { FileItem, JobItem, PrivacyPreset } from '../types';
-import { api } from '../services/api';
+import { api, getFullDownloadUrl } from '../services/api';
 import { getOperationsForFile } from '../utils/operations';
 import { cleanFilename, formatBytes } from '../utils/format';
 
@@ -354,7 +354,7 @@ export const ConversionPanel: React.FC<ConversionPanelProps> = ({
                 </span>
                 {currentJob.download_url && (
                   <a
-                    href={currentJob.download_url}
+                    href={getFullDownloadUrl(currentJob.download_url)}
                     className="inline-flex items-center gap-1 px-3 py-1 rounded bg-emerald-700 text-white text-[11px] font-semibold hover:bg-emerald-800 transition-colors"
                   >
                     <Download className="w-3 h-3" />

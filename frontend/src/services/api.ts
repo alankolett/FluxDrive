@@ -10,7 +10,31 @@ import type {
   PrivacyPreset
 } from '../types';
 
-const API_BASE = '/api';
+const getBaseUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim() !== '') {
+    return envUrl.trim().replace(/\/$/, '');
+  }
+  if (typeof window !== 'undefined') {
+    const customUrl = localStorage.getItem('fluxdrive_api_url');
+    if (customUrl && customUrl.trim() !== '') {
+      return customUrl.trim().replace(/\/$/, '');
+    }
+  }
+  return '';
+};
+
+export const getApiBase = (): string => {
+  const base = getBaseUrl();
+  return base ? `${base}/api` : '/api';
+};
+
+export const getFullDownloadUrl = (url: string | undefined): string => {
+  if (!url) return '#';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const base = getBaseUrl();
+  return base ? `${base}${url.startsWith('/') ? '' : '/'}${url}` : url;
+};
 
 export const api = {
   async uploadFile(file: File, preset: PrivacyPreset = 'standard'): Promise<FileItem> {
@@ -18,7 +42,7 @@ export const api = {
     formData.append('file', file);
     formData.append('privacy_preset', preset);
 
-    const res = await fetch(`${API_BASE}/files/upload`, {
+    const res = await fetch(`${getApiBase()}/files/upload`, {
       method: 'POST',
       body: formData,
     });
@@ -31,19 +55,19 @@ export const api = {
   },
 
   async listVaultFiles(): Promise<FileItem[]> {
-    const res = await fetch(`${API_BASE}/files`);
+    const res = await fetch(`${getApiBase()}/files`);
     if (!res.ok) throw new Error('Failed to load Vault files');
     return res.json();
   },
 
   async getFile(fileId: string): Promise<FileItem> {
-    const res = await fetch(`${API_BASE}/files/${fileId}`);
+    const res = await fetch(`${getApiBase()}/files/${fileId}`);
     if (!res.ok) throw new Error('File not found');
     return res.json();
   },
 
   async destroyFile(fileId: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/files/${fileId}`, { method: 'DELETE' });
+    const res = await fetch(`${getApiBase()}/files/${fileId}`, { method: 'DELETE' });
     if (!res.ok) throw new Error('Failed to destroy file');
   },
 
@@ -53,7 +77,7 @@ export const api = {
     preset: PrivacyPreset = 'standard',
     options: Record<string, any> = {}
   ): Promise<JobItem> {
-    const res = await fetch(`${API_BASE}/jobs`, {
+    const res = await fetch(`${getApiBase()}/jobs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -72,37 +96,37 @@ export const api = {
   },
 
   async getJob(jobId: string): Promise<JobItem> {
-    const res = await fetch(`${API_BASE}/jobs/${jobId}`);
+    const res = await fetch(`${getApiBase()}/jobs/${jobId}`);
     if (!res.ok) throw new Error('Job not found');
     return res.json();
   },
 
   async listJobs(): Promise<JobItem[]> {
-    const res = await fetch(`${API_BASE}/jobs`);
+    const res = await fetch(`${getApiBase()}/jobs`);
     if (!res.ok) throw new Error('Failed to load activity jobs');
     return res.json();
   },
 
   async getSecurityPassport(id: string): Promise<SecurityPassportData> {
-    const res = await fetch(`${API_BASE}/passport/${id}`);
+    const res = await fetch(`${getApiBase()}/passport/${id}`);
     if (!res.ok) throw new Error('Security Passport not found');
     return res.json();
   },
 
   async getPrivacyScan(fileId: string): Promise<PrivacyScanData> {
-    const res = await fetch(`${API_BASE}/privacy/scan/${fileId}`);
+    const res = await fetch(`${getApiBase()}/privacy/scan/${fileId}`);
     if (!res.ok) throw new Error('Privacy scan failed');
     return res.json();
   },
 
   async getExifData(fileId: string): Promise<ExifData> {
-    const res = await fetch(`${API_BASE}/privacy/exif/${fileId}`);
+    const res = await fetch(`${getApiBase()}/privacy/exif/${fileId}`);
     if (!res.ok) throw new Error('Failed to extract EXIF data');
     return res.json();
   },
 
   async stripExif(fileId: string): Promise<ExifStripResult> {
-    const res = await fetch(`${API_BASE}/privacy/strip-exif/${fileId}`, {
+    const res = await fetch(`${getApiBase()}/privacy/strip-exif/${fileId}`, {
       method: 'POST',
     });
     if (!res.ok) throw new Error('Failed to strip metadata');
@@ -110,7 +134,7 @@ export const api = {
   },
 
   async previewSanitized(fileId: string): Promise<SanitizedPreviewData> {
-    const res = await fetch(`${API_BASE}/copilot/preview-sanitized`, {
+    const res = await fetch(`${getApiBase()}/copilot/preview-sanitized`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ file_id: fileId }),
@@ -126,7 +150,7 @@ export const api = {
     grokApiKey?: string,
     model?: string
   ): Promise<CopilotResponseData> {
-    const res = await fetch(`${API_BASE}/copilot/query`, {
+    const res = await fetch(`${getApiBase()}/copilot/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -145,7 +169,7 @@ export const api = {
   },
 
   async routeIntent(fileId: string, intent: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/copilot/intent-route`, {
+    const res = await fetch(`${getApiBase()}/copilot/intent-route`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ file_id: fileId, intent }),
@@ -155,7 +179,7 @@ export const api = {
   },
 
   async checkHealth(): Promise<any> {
-    const res = await fetch(`${API_BASE}/health`);
+    const res = await fetch(`${getApiBase()}/health`);
     if (!res.ok) throw new Error('Backend health check failed');
     return res.json();
   },
